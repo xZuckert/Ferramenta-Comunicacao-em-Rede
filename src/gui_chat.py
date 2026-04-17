@@ -1,7 +1,9 @@
 # Interface gráfica para desktop do chat automático em rede local (LAN).
 
-# A interface padrão é uma janela nativa que renderiza a mesma interface web usada
-# pelo modo navegador, preservando o HTML, CSS e JavaScript originais.
+# A interface padrão escolhe automaticamente o melhor modo disponível:
+# janela nativa GTK/WebKit no Linux quando instalada, ou navegador local nos
+# demais sistemas. Assim o mesmo frontend HTML/CSS/JavaScript funciona também no
+# Windows sem depender de bibliotecas gráficas nativas.
 
 from __future__ import annotations
 
@@ -9,6 +11,7 @@ import argparse
 import base64
 import json
 import mimetypes
+import platform
 import random
 import socket
 import threading
@@ -309,7 +312,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=2.0, help="discovery timeout in seconds; default: 2.0")
     parser.add_argument("--server-name", default="Chat TCP LAN", help="advertised room name when hosting")
     parser.add_argument("--web", action="store_true", help="open the same interface in the default browser")
-    parser.add_argument("--no-browser", action="store_true", help="with --web, do not open the browser automatically")
+    parser.add_argument("--native", action="store_true", help="force the embedded Linux GTK/WebKit window")
+    parser.add_argument("--no-browser", action="store_true", help="do not open the browser automatically")
     return parser.parse_args()
 
 
@@ -335,6 +339,9 @@ def run_web_interface(args: argparse.Namespace, session: GuiChatSession) -> None
 
 
 def run_embedded_web_interface(args: argparse.Namespace, session: GuiChatSession) -> None:
+    if platform.system() != "Linux":
+        raise RuntimeError("Native GTK/WebKit mode is only supported on Linux")
+
     try:
         import gi
 
@@ -372,16 +379,29 @@ def run_embedded_web_interface(args: argparse.Namespace, session: GuiChatSession
     Gtk.main()
 
 
+def run_auto_interface(args: argparse.Namespace, session: GuiChatSession) -> None:
+    if platform.system() == "Linux":
+        try:
+            run_embedded_web_interface(args, session)
+            return
+        except RuntimeError as exc:
+            print(f"{exc}. Falling back to the browser interface.")
+
+    run_web_interface(args, session)
+
+
 def main() -> None:
     args = parse_args()
     session = GuiChatSession(args.chat_port, args.discovery_port, args.timeout, args.server_name)
-    if args.web:
-        run_web_interface(args, session)
-    else:
+    if args.native:
         try:
             run_embedded_web_interface(args, session)
         except RuntimeError as exc:
-            print(f"{exc}. Install GTK WebKit2 or run with --web to use the browser.")
+            print(f"{exc}. Install GTK WebKit2 on Linux or run without --native to use the browser.")
+    elif args.web:
+        run_web_interface(args, session)
+    else:
+        run_auto_interface(args, session)
 
 
 if __name__ == "__main__":
