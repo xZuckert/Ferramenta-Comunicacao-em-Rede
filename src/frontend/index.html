@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Local Chat</title>
+    <link rel="stylesheet" href="/app.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section id="welcome-view" class="welcome-view">
+        <div class="brand-mark" aria-hidden="true">
+          <span>LC</span>
+        </div>
+        <div class="welcome-copy">
+          <h1>Local Chat</h1>
+          <p>Join the shared chat room available on your local network.</p>
+        </div>
+        <form id="join-form" class="join-form">
+          <label for="username">Username</label>
+          <div class="join-row">
+            <input id="username" name="username" autocomplete="name" placeholder="Alex" required maxlength="32">
+            <button type="submit">Join</button>
+          </div>
+        </form>
+        <p class="network-note">The app discovers or hosts a room automatically.</p>
+      </section>
+
+      <section id="connecting-view" class="connecting-view hidden" aria-live="polite">
+        <div class="radar" aria-hidden="true">
+          <div class="radar-ring"></div>
+          <div class="radar-ring radar-ring-delay"></div>
+          <div class="radar-core"></div>
+        </div>
+        <h1>Connecting</h1>
+        <ol class="connection-steps">
+          <li id="step-discover" class="active">Searching for an active room</li>
+          <li id="step-connect">Opening the TCP connection</li>
+          <li id="step-ready">Preparing the chat interface</li>
+        </ol>
+      </section>
+
+      <section id="chat-view" class="chat-view hidden">
+        <header class="chat-header">
+          <div>
+            <h1>Local Chat</h1>
+            <p id="room-status">Online</p>
+          </div>
+          <button id="leave-button" class="icon-button" type="button" title="Leave chat" aria-label="Leave chat">
+            <span aria-hidden="true">×</span>
+          </button>
+        </header>
+
+        <div id="messages" class="messages" aria-live="polite"></div>
+
+        <footer class="composer">
+          <input id="file-input" type="file" hidden>
+          <button id="file-button" class="icon-button" type="button" title="Send file" aria-label="Send file">
+            <span aria-hidden="true">+</span>
+          </button>
+          <form id="message-form" class="message-form">
+            <input id="message-input" autocomplete="off" placeholder="Write a message">
+            <button type="submit">Send</button>
+          </form>
+        </footer>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
