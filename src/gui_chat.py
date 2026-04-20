@@ -1,9 +1,9 @@
 # Interface gráfica para desktop do chat automático em rede local (LAN).
 
 # A interface padrão escolhe automaticamente o melhor modo disponível:
-# janela nativa GTK/WebKit no Linux quando instalada, ou navegador local nos
-# demais sistemas. Assim o mesmo frontend HTML/CSS/JavaScript funciona também no
-# Windows sem depender de bibliotecas gráficas nativas.
+# janela nativa multiplataforma via pywebview quando instalado, ou navegador
+# local como fallback. Assim o mesmo frontend HTML/CSS/JavaScript funciona no
+# Windows e no Linux.
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ import argparse
 import base64
 import json
 import mimetypes
-import platform
 import random
 import socket
 import threading
@@ -312,7 +311,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=2.0, help="discovery timeout in seconds; default: 2.0")
     parser.add_argument("--server-name", default="Chat TCP LAN", help="advertised room name when hosting")
     parser.add_argument("--web", action="store_true", help="open the same interface in the default browser")
-    parser.add_argument("--native", action="store_true", help="force the embedded Linux GTK/WebKit window")
+    parser.add_argument("--native", action="store_true", help="force the native desktop window")
     parser.add_argument("--no-browser", action="store_true", help="do not open the browser automatically")
     return parser.parse_args()
 
@@ -338,18 +337,11 @@ def run_web_interface(args: argparse.Namespace, session: GuiChatSession) -> None
         server.server_close()
 
 
-def run_embedded_web_interface(args: argparse.Namespace, session: GuiChatSession) -> None:
-    if platform.system() != "Linux":
-        raise RuntimeError("Native GTK/WebKit mode is only supported on Linux")
-
+def run_native_interface(args: argparse.Namespace, session: GuiChatSession) -> None:
     try:
-        import gi
-
-        gi.require_version("Gtk", "3.0")
-        gi.require_version("WebKit2", "4.1")
-        from gi.repository import Gtk, WebKit2
-    except (ImportError, ValueError) as exc:
-        raise RuntimeError("GTK WebKit2 is not available") from exc
+        import webview
+    except ImportError as exc:
+        raise RuntimeError("pywebview is not available") from exc
 
     class RequestHandler(GuiRequestHandler):
         pass
@@ -360,32 +352,29 @@ def run_embedded_web_interface(args: argparse.Namespace, session: GuiChatSession
     server_thread.start()
 
     url = f"http://{args.ui_host}:{args.ui_port}"
-    window = Gtk.Window(title="Local Chat")
-    window.set_default_size(980, 860)
-    window.set_size_request(520, 420)
-
-    web_view = WebKit2.WebView()
-    web_view.load_uri(url)
-    window.add(web_view)
-
-    def close_window(_window: object) -> None:
+    try:
+        webview.create_window(
+            "Local Chat",
+            url,
+            width=980,
+            height=860,
+            min_size=(520, 420),
+        )
+        webview.start()
+    except Exception as exc:
+        raise RuntimeError("native desktop window could not be started") from exc
+    finally:
         session.stop()
         server.shutdown()
         server.server_close()
-        Gtk.main_quit()
-
-    window.connect("destroy", close_window)
-    window.show_all()
-    Gtk.main()
 
 
 def run_auto_interface(args: argparse.Namespace, session: GuiChatSession) -> None:
-    if platform.system() == "Linux":
-        try:
-            run_embedded_web_interface(args, session)
-            return
-        except RuntimeError as exc:
-            print(f"{exc}. Falling back to the browser interface.")
+    try:
+        run_native_interface(args, session)
+        return
+    except RuntimeError as exc:
+        print(f"{exc}. Falling back to the browser interface.")
 
     run_web_interface(args, session)
 
@@ -395,9 +384,9 @@ def main() -> None:
     session = GuiChatSession(args.chat_port, args.discovery_port, args.timeout, args.server_name)
     if args.native:
         try:
-            run_embedded_web_interface(args, session)
+            run_native_interface(args, session)
         except RuntimeError as exc:
-            print(f"{exc}. Install GTK WebKit2 on Linux or run without --native to use the browser.")
+            print(f"{exc}. Install pywebview or run without --native to use the browser.")
     elif args.web:
         run_web_interface(args, session)
     else:

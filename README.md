@@ -3,7 +3,7 @@
 Aplicacao de chat em rede local desenvolvida em Python usando TCP/IP. O projeto permite que dois ou mais usuarios troquem mensagens e arquivos dentro da mesma LAN, com tres formas principais de uso:
 
 - interface visual multiplataforma pelo navegador local;
-- interface nativa de desktop baseada em GTK/WebKit no Linux;
+- interface nativa de desktop via pywebview no Windows e no Linux;
 - modo terminal, com servidor e cliente TCP tradicionais.
 
 O codigo tambem inclui descoberta automatica por UDP broadcast. Com isso, no modo automatico, o primeiro computador que abrir a sala vira o servidor TCP e os outros computadores encontram essa sala sem precisar digitar o IP manualmente.
@@ -19,7 +19,7 @@ O codigo tambem inclui descoberta automatica por UDP broadcast. Com isso, no mod
 - Descoberta automatica de sala na rede local usando UDP broadcast.
 - Interface web responsiva com tela de entrada, tela de conexao e tela de chat.
 - Interface visual que reaproveita o mesmo HTML, CSS e JavaScript no Linux e no Windows.
-- Interface nativa GTK/WebKit opcional no Linux.
+- Interface nativa multiplataforma opcional com pywebview.
 - Cliente automatico para terminal, que procura uma sala existente ou hospeda uma nova.
 - Protocolo proprio simples baseado em JSON com prefixo de tamanho para preservar os limites das mensagens TCP.
 
@@ -55,7 +55,7 @@ O codigo tambem inclui descoberta automatica por UDP broadcast. Com isso, no mod
 : Cliente automatico de terminal. Primeiro procura uma sala ativa na rede local. Se encontrar, conecta nela. Se nao encontrar, inicia um servidor TCP local, anuncia a sala por UDP e conecta o proprio usuario.
 
 `src/gui_chat.py`
-: Modo grafico e modo web. Sobe um pequeno servidor HTTP local para servir o frontend e expor endpoints de controle do chat. Tambem pode abrir a interface em uma janela nativa com GTK/WebKit.
+: Modo grafico e modo web. Sobe um pequeno servidor HTTP local para servir o frontend e expor endpoints de controle do chat. Tambem pode abrir a interface em uma janela nativa com pywebview.
 
 `src/discovery.py`
 : Descoberta automatica por UDP broadcast. Usa uma porta UDP para procurar servidores e responder com o endereco da sala TCP.
@@ -73,25 +73,25 @@ O codigo tambem inclui descoberta automatica por UDP broadcast. Com isso, no mod
 - Porta TCP `5050` liberada para o chat, por padrao.
 - Porta UDP `5052` liberada para descoberta automatica, por padrao.
 - Para o modo web: navegador moderno.
-- Para o modo nativo desktop no Linux: GTK 3, WebKit2GTK e PyGObject.
-- Para Windows: Python 3.10 ou superior e navegador moderno.
+- Para o modo nativo desktop: pywebview.
+- Para Windows: Python 3.10 ou superior. O pywebview usa o WebView2 quando disponivel.
+- Para Linux: as bibliotecas graficas usadas pelo backend escolhido pelo pywebview, normalmente GTK/WebKitGTK ou Qt.
 
 O arquivo `requirements.txt` declara:
 
 ```text
-PyGObject; platform_system == "Linux"
+pywebview>=5.0
 ```
 
-Essa dependencia e necessaria para a janela nativa no Linux. O modo terminal e o modo web usam apenas bibliotecas da biblioteca padrao do Python.
-No Windows, essa dependencia e ignorada automaticamente pelo marcador `platform_system == "Linux"`.
+Essa dependencia e necessaria para a janela nativa no Windows e no Linux. O modo terminal e o modo web usam apenas bibliotecas da biblioteca padrao do Python.
 
-Em distribuicoes baseadas em Debian/Ubuntu, as dependencias nativas geralmente podem ser instaladas com:
+Em distribuicoes baseadas em Debian/Ubuntu, caso a janela nativa nao abra por falta de backend grafico, instale as bibliotecas GTK/WebKitGTK:
 
 ```bash
 sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.1
 ```
 
-Se o pacote `gir1.2-webkit2-4.1` nao existir na sua distribuicao, verifique o pacote WebKit2GTK equivalente disponivel nela.
+Se o pacote `gir1.2-webkit2-4.1` nao existir na sua distribuicao, verifique o pacote WebKitGTK equivalente disponivel nela. Outra opcao e instalar um backend Qt suportado pelo pywebview.
 
 ## Instalacao
 
@@ -114,7 +114,7 @@ Instale as dependencias Python declaradas:
 pip install -r requirements.txt
 ```
 
-Observacao: se voce for usar apenas terminal ou web no navegador, o projeto consegue funcionar sem PyGObject. Se a instalacao do PyGObject falhar, instale primeiro as bibliotecas GTK/WebKit do sistema ou use o modo `--web`.
+Observacao: se voce for usar apenas terminal ou web no navegador, o projeto consegue funcionar sem pywebview. Se a instalacao do pywebview ou do backend grafico falhar, use o modo `--web`.
 
 No Windows, use o inicializador `py` se o comando `python` nao estiver configurado:
 
@@ -128,9 +128,8 @@ A estrategia de compatibilidade e manter a interface principal como uma aplicaca
 
 Com isso:
 
-- Linux pode usar a janela nativa GTK/WebKit quando as bibliotecas estiverem instaladas.
-- Linux sem GTK/WebKit abre automaticamente a interface no navegador.
-- Windows abre automaticamente a interface no navegador, sem tentar carregar GTK/WebKit.
+- Linux e Windows podem usar a janela nativa quando pywebview e um backend grafico estiverem disponiveis.
+- Sem suporte nativo disponivel, o programa abre automaticamente a interface no navegador.
 - O terminal continua disponivel nos dois sistemas usando os mesmos scripts Python.
 
 O comando principal para uso visual multiplataforma e:
@@ -151,7 +150,7 @@ Para forcar o navegador em qualquer sistema:
 python src/gui_chat.py --web
 ```
 
-Para exigir a janela nativa no Linux:
+Para exigir a janela nativa:
 
 ```bash
 python src/gui_chat.py --native
@@ -239,7 +238,7 @@ python3 src/gui_chat.py --web --server-name "Sala da Turma"
 
 ## Uso Pelo Aplicativo Visual
 
-O modo padrao escolhe automaticamente como abrir a interface. No Linux com GTK/WebKit instalado, ele abre uma janela desktop. No Windows, ou em Linux sem GTK/WebKit, ele abre a mesma interface no navegador local.
+O modo padrao escolhe automaticamente como abrir a interface. Com pywebview instalado e um backend grafico disponivel, ele abre uma janela desktop nativa no Windows ou no Linux. Se a janela nativa nao estiver disponivel, ele abre a mesma interface no navegador local.
 
 ```bash
 python src/gui_chat.py
@@ -253,16 +252,16 @@ py src\gui_chat.py
 
 O programa cria um servidor HTTP local em `127.0.0.1:8080` e usa a mesma interface HTML/CSS/JavaScript nos dois sistemas.
 
-Para forcar a janela nativa no Linux:
+Para forcar a janela nativa:
 
 ```bash
 python3 src/gui_chat.py --native
 ```
 
-Se as bibliotecas GTK/WebKit nao estiverem instaladas, o script exibe uma mensagem parecida com:
+Se pywebview nao estiver instalado, o script exibe uma mensagem parecida com:
 
 ```text
-GTK WebKit2 is not available. Falling back to the browser interface.
+pywebview is not available. Falling back to the browser interface.
 ```
 
 Nesse caso, sem `--native`, o programa cai automaticamente para o navegador. Com `--native`, instale as dependencias nativas ou use:
@@ -577,7 +576,7 @@ Solucoes:
 
 ### Modo nativo nao abre
 
-Instale GTK/WebKit2 ou use o navegador:
+Instale pywebview e, no Linux, confira se ha um backend grafico disponivel. Para usar sem janela nativa, abra no navegador:
 
 ```bash
 python3 src/gui_chat.py --web

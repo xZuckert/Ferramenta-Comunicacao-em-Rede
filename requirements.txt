@@ -1,1 +1,1 @@
-PyGObject; platform_system == "Linux"
+pywebview>=5.0
